@@ -1,31 +1,31 @@
-# Custom RGB Matrix Display Programs
-# This Makefile is for compiling custom display programs
+CFLAGS=-Wall -O3 -g -Wextra -Wno-unused-parameter
+CXXFLAGS=$(CFLAGS)
 
-# The top-level Makefile sets up the compiler options and necessary libraries
-include ../Makefile
+OBJECTS=hello-world.o
+BINARIES=hello-world
 
-# Where to find the header files
-INCLUDES=-I../include
+# Where our library resides. You mostly only need to change the
+# RGB_LIB_DISTRIBUTION, this is where the library is checked out.
+RGB_LIB_DISTRIBUTION=..
+RGB_INCDIR=$(RGB_LIB_DISTRIBUTION)/include
+RGB_LIBDIR=$(RGB_LIB_DISTRIBUTION)/lib
+RGB_LIBRARY_NAME=rgbmatrix
+RGB_LIBRARY=$(RGB_LIBDIR)/lib$(RGB_LIBRARY_NAME).a
+LDFLAGS+=-L$(RGB_LIBDIR) -l$(RGB_LIBRARY_NAME) -lrt -lm -lpthread
 
-# What programs to build
-TARGETS=hello-world
+all : $(BINARIES)
 
-# All the object files
-OBJECTS=$(TARGETS:%=%.o)
+$(RGB_LIBRARY): FORCE
+	$(MAKE) -C $(RGB_LIBDIR)
 
-# The default target
-all : $(TARGETS)
+hello-world : hello-world.o $(RGB_LIBRARY)
+	$(CXX) $< -o $@ $(LDFLAGS)
 
-# How to build the programs
-% : %.o
-	$(CXX) $(CXXFLAGS) -o $@ $< $(LDFLAGS)
-
-# How to build the object files
 %.o : %.cc
-	$(CXX) $(CXXFLAGS) $(INCLUDES) -c -o $@ $<
+	$(CXX) -I$(RGB_INCDIR) $(CXXFLAGS) -c -o $@ $<
 
-# Clean up
 clean:
-	rm -f $(TARGETS) $(OBJECTS)
-
-.PHONY: all clean 
+	rm -f $(OBJECTS) $(BINARIES)
+ 
+FORCE:
+.PHONY: FORCE
