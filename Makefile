@@ -10,15 +10,17 @@ PYTHON_LIB_DIR=bindings/python
 CSHARP_LIB_DIR=bindings/c\#
 
 all : $(RGB_LIBRARY)
+	$(MAKE) -C examples-api-use
+	$(MAKE) -C custom-displays
 
 $(RGB_LIBRARY): FORCE
 	$(MAKE) -C $(RGB_LIBDIR)
-	$(MAKE) -C examples-api-use
 
 clean:
 	$(MAKE) -C lib clean
 	$(MAKE) -C utils clean
 	$(MAKE) -C examples-api-use clean
+	$(MAKE) -C custom-displays clean
 	$(MAKE) -C $(PYTHON_LIB_DIR) clean
 
 build-csharp:
