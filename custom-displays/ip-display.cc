@@ -72,7 +72,7 @@ int main(int argc, char *argv[]) {
 
   // Create a font
   rgb_matrix::Font font;
-  if (!font.LoadFont("../fonts/5x7.bdf")) {
+  if (!font.LoadFont("../fonts/4x6.bdf")) {
     fprintf(stderr, "Couldn't load font\n");
     return 1;
   }
@@ -87,7 +87,7 @@ int main(int argc, char *argv[]) {
     // Get current IP
     std::string ip = GetIPAddress();
 
-    rgb_matrix::DrawText(offscreen, font, 2, 2, ip_color, ip.c_str());
+    rgb_matrix::DrawText(offscreen, font, 1, defaults.cols / 2, ip_color, ip.c_str());
 
     // Swap the offscreen canvas with the onscreen one
     offscreen = matrix->SwapOnVSync(offscreen);
