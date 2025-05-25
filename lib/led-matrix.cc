@@ -278,7 +278,7 @@ RGBMatrix::Options::Options() :
   hardware_mapping("regular"),
 #endif
 
-  rows(32), cols(32), chain_length(1), parallel(1),
+  rows(32), cols(64), chain_length(1), parallel(1),
   pwm_bits(internal::Framebuffer::kDefaultBitPlanes),
 
 #ifdef LSB_PWM_NANOSECONDS

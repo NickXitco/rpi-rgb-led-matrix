@@ -66,7 +66,7 @@ HARDWARE_DESC?=regular
 # typically should double check cables and add TTL level converter if you
 # haven't.
 # Flag: --led-slowdown-gpio
-#DEFINES+=-DRGB_SLOWDOWN_GPIO=1
+DEFINES+=-DRGB_SLOWDOWN_GPIO=3
 
 # This allows to change the base time-unit for the on-time in the lowest
 # significant bit in nanoseconds.
@@ -174,6 +174,13 @@ DEFINES+=-DDEFAULT_HARDWARE='"$(HARDWARE_DESC)"'
 INCDIR=../include
 CFLAGS=-W -Wall -Wextra -Wno-unused-parameter -O3 -g -fPIC $(DEFINES) -march=native
 CXXFLAGS=$(CFLAGS) -fno-exceptions -std=c++11
+
+# Default panel type for FM6127
+DEFINES+=-DDEFAULT_PANEL_TYPE=FM6127
+
+# Default rows and columns
+DEFINES+=-DDEFAULT_ROWS=32
+DEFINES+=-DDEFAULT_COLS=64
 
 all : $(TARGET).a $(TARGET).so.1
 
