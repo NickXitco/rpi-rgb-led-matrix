@@ -72,14 +72,13 @@ int main(int argc, char *argv[]) {
 
   // Create a font
   rgb_matrix::Font font;
-  if (!font.LoadFont("../fonts/7x13.bdf")) {
+  if (!font.LoadFont("../fonts/5x7.bdf")) {
     fprintf(stderr, "Couldn't load font\n");
     return 1;
   }
 
   // Colors
   Color ip_color(0, 255, 0);    // Green for IP
-  Color label_color(255, 255, 0); // Yellow for label
 
   while (!interrupt_received) {
     // Clear the offscreen canvas
@@ -88,11 +87,7 @@ int main(int argc, char *argv[]) {
     // Get current IP
     std::string ip = GetIPAddress();
 
-    // Draw "IP:" label
-    rgb_matrix::DrawText(offscreen, font, 5, 15, label_color, "IP:");
-
-    // Draw the IP address
-    rgb_matrix::DrawText(offscreen, font, 5, 30, ip_color, ip.c_str());
+    rgb_matrix::DrawText(offscreen, font, 2, 2, ip_color, ip.c_str());
 
     // Swap the offscreen canvas with the onscreen one
     offscreen = matrix->SwapOnVSync(offscreen);
