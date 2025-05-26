@@ -13,6 +13,8 @@
 #include <sstream>
 #include <Magick++.h>
 #include <chrono>
+#include <mutex>
+#include <vector>
 
 using namespace rgb_matrix;
 using json = nlohmann::json;
@@ -56,10 +58,23 @@ json GetWeatherData(const std::string& api_key) {
     }
 }
 
-// Function to fetch and draw weather icon
-void DrawWeatherIcon(FrameCanvas* canvas, const std::string& icon_code, int x, int y) {
+// Structure to hold weather icon data
+struct WeatherIcon {
+    std::vector<uint8_t> pixels;  // RGBA data
+    int width;
+    int height;
+    std::string icon_code;
+
+    WeatherIcon() : width(0), height(0) {}
+};
+
+// Function to fetch weather icon
+WeatherIcon FetchWeatherIcon(const std::string& icon_code) {
+    WeatherIcon icon;
+    icon.icon_code = icon_code;
+
     CURL* curl = curl_easy_init();
-    if (!curl) return;
+    if (!curl) return icon;
 
     std::string url = "https://openweathermap.org/img/wn/" + icon_code + "@2x.png";
     WriteCallback callback;
@@ -71,7 +86,7 @@ void DrawWeatherIcon(FrameCanvas* canvas, const std::string& icon_code, int x, i
     CURLcode res = curl_easy_perform(curl);
     curl_easy_cleanup(curl);
 
-    if (res != CURLE_OK) return;
+    if (res != CURLE_OK) return icon;
 
     try {
         // Create a temporary file to store the image
@@ -87,14 +102,20 @@ void DrawWeatherIcon(FrameCanvas* canvas, const std::string& icon_code, int x, i
         // Resize to fit our display (32x32 pixels)
         image.resize(Magick::Geometry(32, 32));
         
-        // Convert to RGB and draw on canvas
+        // Store the image data
+        icon.width = image.columns();
+        icon.height = image.rows();
+        icon.pixels.resize(icon.width * icon.height * 4);  // RGBA format
+
+        // Convert to RGBA and store in pixels vector
         for (size_t i = 0; i < image.rows(); i++) {
             for (size_t j = 0; j < image.columns(); j++) {
                 Magick::ColorRGB color = image.pixelColor(j, i);
-                canvas->SetPixel(x + j, y + i,
-                               static_cast<uint8_t>(color.red() * 255),
-                               static_cast<uint8_t>(color.green() * 255),
-                               static_cast<uint8_t>(color.blue() * 255));
+                size_t idx = (i * icon.width + j) * 4;
+                icon.pixels[idx] = static_cast<uint8_t>(color.red() * 255);
+                icon.pixels[idx + 1] = static_cast<uint8_t>(color.green() * 255);
+                icon.pixels[idx + 2] = static_cast<uint8_t>(color.blue() * 255);
+                icon.pixels[idx + 3] = 255;  // Alpha
             }
         }
 
@@ -103,7 +124,35 @@ void DrawWeatherIcon(FrameCanvas* canvas, const std::string& icon_code, int x, i
     } catch (const std::exception& e) {
         fprintf(stderr, "Error processing weather icon: %s\n", e.what());
     }
+
+    return icon;
 }
+
+// Function to draw weather icon from cached data
+void DrawWeatherIcon(FrameCanvas* canvas, const WeatherIcon& icon, int x, int y) {
+    if (icon.pixels.empty()) return;
+
+    for (int i = 0; i < icon.height; i++) {
+        for (int j = 0; j < icon.width; j++) {
+            size_t idx = (i * icon.width + j) * 4;
+            canvas->SetPixel(x + j, y + i,
+                           icon.pixels[idx],
+                           icon.pixels[idx + 1],
+                           icon.pixels[idx + 2]);
+        }
+    }
+}
+
+// Structure to hold weather data
+struct WeatherData {
+    double temperature;
+    std::string icon_code;
+    WeatherIcon icon;
+    bool has_data;
+    std::mutex mutex;
+
+    WeatherData() : temperature(0.0), has_data(false) {}
+};
 
 int main(int argc, char *argv[]) {
     // Initialize ImageMagick
@@ -147,8 +196,24 @@ int main(int argc, char *argv[]) {
     // Create background animation
     PerlinNoiseAnimation background(offscreen);
     auto last_frame = high_resolution_clock::now();
-    // The first loop should get the weather data
-    auto last_weather_update = last_frame + seconds(500);
+    auto last_weather_update = last_frame;
+    
+    // Weather data storage
+    WeatherData weather_data;
+
+    // Initial weather data fetch
+    json initial_data = GetWeatherData(api_key);
+    if (!initial_data.empty()) {
+        try {
+            std::lock_guard<std::mutex> lock(weather_data.mutex);
+            weather_data.temperature = initial_data["main"]["temp"].get<double>();
+            weather_data.icon_code = initial_data["weather"][0]["icon"].get<std::string>();
+            weather_data.icon = FetchWeatherIcon(weather_data.icon_code);
+            weather_data.has_data = true;
+        } catch (const std::exception& e) {
+            fprintf(stderr, "Error processing initial weather data: %s\n", e.what());
+        }
+    }
 
     while (!interrupt_received) {
         auto now = high_resolution_clock::now();
@@ -159,28 +224,40 @@ int main(int argc, char *argv[]) {
         background.Update(delta_time);
         background.Draw();
 
-        // Update weather data every 5 minutes
-        if (duration<float>(now - last_weather_update).count() >= 300.0f) {
-            json weather_data = GetWeatherData(api_key);
-            
-            if (!weather_data.empty()) {
-                try {
-                    // Get temperature and weather icon
-                    double temp = weather_data["main"]["temp"].get<double>();
-                    std::string icon = weather_data["weather"][0]["icon"].get<std::string>();
-                    
-                    // Draw weather icon
-                    DrawWeatherIcon(offscreen, icon, 0, 0);
-                    
-                    // Draw temperature
-                    std::string temp_str = std::to_string(static_cast<int>(round(temp))) + "°F";
-                    rgb_matrix::DrawText(offscreen, font, 29, 23, temp_color, temp_str.c_str());
-                } catch (const std::exception& e) {
-                    fprintf(stderr, "Error processing weather data: %s\n", e.what());
-                    rgb_matrix::DrawText(offscreen, font, 2, 15, temp_color, "Error");
-                }
+        // Draw current weather data
+        {
+            std::lock_guard<std::mutex> lock(weather_data.mutex);
+            if (weather_data.has_data) {
+                // Draw weather icon
+                DrawWeatherIcon(offscreen, weather_data.icon, 0, 0);
+                
+                // Draw temperature
+                std::string temp_str = std::to_string(static_cast<int>(round(weather_data.temperature))) + "°F";
+                rgb_matrix::DrawText(offscreen, font, 29, 23, temp_color, temp_str.c_str());
             } else {
                 rgb_matrix::DrawText(offscreen, font, 2, 15, temp_color, "No Data");
+            }
+        }
+
+        // Update weather data every 5 minutes
+        if (duration<float>(now - last_weather_update).count() >= 300.0f) {
+            json new_data = GetWeatherData(api_key);
+            if (!new_data.empty()) {
+                try {
+                    std::lock_guard<std::mutex> lock(weather_data.mutex);
+                    weather_data.temperature = new_data["main"]["temp"].get<double>();
+                    std::string new_icon_code = new_data["weather"][0]["icon"].get<std::string>();
+                    
+                    // Only fetch new icon if the code has changed
+                    if (new_icon_code != weather_data.icon_code) {
+                        weather_data.icon_code = new_icon_code;
+                        weather_data.icon = FetchWeatherIcon(weather_data.icon_code);
+                    }
+                    
+                    weather_data.has_data = true;
+                } catch (const std::exception& e) {
+                    fprintf(stderr, "Error processing weather data: %s\n", e.what());
+                }
             }
             last_weather_update = now;
         }
