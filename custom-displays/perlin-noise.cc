@@ -45,12 +45,16 @@ public:
           // stb_perlin_noise3 returns values between -1 and 1
           // The last three parameters (0,0,0) are wrap values - we don't need wrapping
           float n = (stb_perlin_noise3(nx, ny, nz, 0, 0, 0) + 1.0f) * 0.5f;
+
+          // Ease the noise value
+          float eased = (n * n * n);
           
-          // Convert to grayscale (0-255)
-          uint8_t value = static_cast<uint8_t>(n * 255);
+          // Scale to 0 - 120
+          uint8_t value = static_cast<uint8_t>(eased * 120);
           
-          // Set pixel color (grayscale)
-          canvas()->SetPixel(x, y, value, value, value);
+          // Set pixel color
+          // Slight blue-purple tint
+          canvas()->SetPixel(x, y, value * 0.9f, value * 0.8f, value * 1.0f);
         }
       }
       
