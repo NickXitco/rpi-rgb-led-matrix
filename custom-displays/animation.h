@@ -49,7 +49,7 @@ public:
                 float eased = (n * n * n);
                 uint8_t value = static_cast<uint8_t>(eased * 120);
                 
-                canvas()->SetPixel(x, y, value * 0.25f, value * 0.10f, value * 1.0f);
+                canvas()->SetPixel(x, y, value * 0.20f, value * 0.10f, value * 1.0f);
             }
         }
     }

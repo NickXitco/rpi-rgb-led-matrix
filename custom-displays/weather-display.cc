@@ -39,7 +39,7 @@ json GetWeatherData(const std::string& api_key) {
     CURL* curl = curl_easy_init();
     if (!curl) return json::object();
 
-    std::string url = "https://api.openweathermap.org/data/2.5/weather?q=New%20York&units=imperial&appid=" + api_key;
+    std::string url = "https://api.openweathermap.org/data/3.0/onecall?lat=40.747435&lon=-73.993702&units=imperial&exclude=minutely%2Chourly%2Cdaily&appid=" + api_key;
     WriteCallback callback;
 
     curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
@@ -191,7 +191,7 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    Color temp_color(178, 216, 206);
+    Color temp_color(178, 226, 206);
 
     // Create background animation
     PerlinNoiseAnimation background(offscreen);
