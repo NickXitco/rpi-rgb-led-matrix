@@ -107,7 +107,7 @@ int main(int argc, char *argv[]) {
         sleep(10);
         matrix->Clear();
         delete matrix;
-        system("systemctl stop led-ip.service");
+        system("sudo /bin/systemctl stop led-ip.service");
         return 0;
     }
     
