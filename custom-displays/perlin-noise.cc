@@ -53,8 +53,8 @@ public:
           uint8_t value = static_cast<uint8_t>(eased * 120);
           
           // Set pixel color
-          // Slight blue-purple tint
-          canvas()->SetPixel(x, y, value * 0.9f, value * 0.8f, value * 1.0f);
+          // violet tint
+          canvas()->SetPixel(x, y, value * 0.25f, value * 0.10f, value * 1.0f);
         }
       }
       
