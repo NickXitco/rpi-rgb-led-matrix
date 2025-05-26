@@ -1,5 +1,8 @@
 #include "led-matrix.h"
 #include "graphics.h"
+
+// Define STB_PERLIN_IMPLEMENTATION before including the header
+#define STB_PERLIN_IMPLEMENTATION
 #include "external/stb_perlin.h"
 
 #include <unistd.h>
