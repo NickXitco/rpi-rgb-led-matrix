@@ -233,7 +233,7 @@ int main(int argc, char *argv[]) {
                 
                 // Draw temperature
                 std::string temp_str = std::to_string(static_cast<int>(round(weather_data.temperature))) + "°F";
-                rgb_matrix::DrawText(offscreen, font, 29, 23, temp_color, temp_str.c_str());
+                rgb_matrix::DrawText(offscreen, font, 30, 22, temp_color, temp_str.c_str());
             } else {
                 rgb_matrix::DrawText(offscreen, font, 2, 15, temp_color, "No Data");
             }
