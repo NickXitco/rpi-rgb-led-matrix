@@ -206,8 +206,8 @@ int main(int argc, char *argv[]) {
     if (!initial_data.empty()) {
         try {
             std::lock_guard<std::mutex> lock(weather_data.mutex);
-            weather_data.temperature = initial_data["main"]["temp"].get<double>();
-            weather_data.icon_code = initial_data["weather"][0]["icon"].get<std::string>();
+            weather_data.temperature = initial_data["current"]["temp"].get<double>();
+            weather_data.icon_code = initial_data["current"]["weather"][0]["icon"].get<std::string>();
             weather_data.icon = FetchWeatherIcon(weather_data.icon_code);
             weather_data.has_data = true;
         } catch (const std::exception& e) {
@@ -245,8 +245,8 @@ int main(int argc, char *argv[]) {
             if (!new_data.empty()) {
                 try {
                     std::lock_guard<std::mutex> lock(weather_data.mutex);
-                    weather_data.temperature = new_data["main"]["temp"].get<double>();
-                    std::string new_icon_code = new_data["weather"][0]["icon"].get<std::string>();
+                    weather_data.temperature = new_data["current"]["temp"].get<double>();
+                    std::string new_icon_code = new_data["current"]["weather"][0]["icon"].get<std::string>();
                     
                     // Only fetch new icon if the code has changed
                     if (new_icon_code != weather_data.icon_code) {
