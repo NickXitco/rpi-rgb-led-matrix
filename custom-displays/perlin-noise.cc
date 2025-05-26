@@ -1,6 +1,6 @@
 #include "led-matrix.h"
 #include "graphics.h"
-#include "FastNoise2.h"
+#include "external/stb_perlin.h"
 
 #include <unistd.h>
 #include <math.h>
@@ -8,7 +8,6 @@
 #include <signal.h>
 #include <string.h>
 #include <random>
-#include <vector>
 
 using namespace rgb_matrix;
 
@@ -20,12 +19,9 @@ static void InterruptHandler(int signo) {
 class PerlinNoiseGenerator {
 protected:
   PerlinNoiseGenerator(Canvas *canvas) : canvas_(canvas) {
-    // Create noise generator
-    noise = FastNoise2::New<FastNoise2::Perlin>();
-    
-    // Configure noise settings
-    noise->SetSeed(std::random_device()());
-    noise->SetFrequency(0.1f);
+    // Initialize random seed
+    std::random_device rd;
+    seed = rd();
   }
 
   inline Canvas *canvas() { return canvas_; }
@@ -35,21 +31,19 @@ public:
   
   void Run() {
     float z = 0.0f;
-    const float speed = 0.01f;
-    
-    // Create a buffer for noise values
-    std::vector<float> noiseBuffer(canvas()->width() * canvas()->height());
+    const float scale = 0.1f;  // Scale of the noise
+    const float speed = 0.01f; // Speed of animation
     
     while (!interrupt_received) {
-      // Generate noise for the entire frame at once
-      for (int y = 0; y < canvas()->height(); ++y) {
-        for (int x = 0; x < canvas()->width(); ++x) {
-          float nx = x * 0.1f;
-          float ny = y * 0.1f;
+      for (int x = 0; x < canvas()->width(); ++x) {
+        for (int y = 0; y < canvas()->height(); ++y) {
+          // Generate noise value between 0 and 1
+          float nx = x * scale;
+          float ny = y * scale;
           float nz = z;
           
-          // Get noise value (-1 to 1) and convert to 0-1 range
-          float n = (noise->GenSingle2D(nx, ny, nz) + 1.0f) * 0.5f;
+          // stb_perlin_noise3 returns values between -1 and 1
+          float n = (stb_perlin_noise3(nx, ny, nz, 0, 0, 0, seed) + 1.0f) * 0.5f;
           
           // Convert to grayscale (0-255)
           uint8_t value = static_cast<uint8_t>(n * 255);
@@ -69,7 +63,7 @@ public:
 
 private:
   Canvas *const canvas_;
-  std::unique_ptr<FastNoise2::Perlin> noise;
+  int seed;  // Random seed for noise
 };
 
 int main(int argc, char *argv[]) {
