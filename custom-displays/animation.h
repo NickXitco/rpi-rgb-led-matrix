@@ -2,6 +2,8 @@
 
 #include "led-matrix.h"
 #include <chrono>
+#include <random>
+#include "external/stb_perlin.h"
 
 using namespace rgb_matrix;
 using namespace std::chrono;

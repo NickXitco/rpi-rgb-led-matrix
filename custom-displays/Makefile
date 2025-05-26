@@ -1,6 +1,19 @@
 CFLAGS=-Wall -O3 -g -Wextra -Wno-unused-parameter
 CXXFLAGS=$(CFLAGS)
 
+# ImageMagick configuration
+MAGICK_CXXFLAGS := $(shell pkg-config --cflags Magick++)
+MAGICK_LDFLAGS := $(shell pkg-config --libs Magick++)
+
+# Define MAGICKCORE_QUANTUM_DEPTH and MAGICKCORE_HDRI_ENABLE
+MAGICK_DEFINES := -DMAGICKCORE_QUANTUM_DEPTH=16 -DMAGICKCORE_HDRI_ENABLE=0
+
+CXXFLAGS += -std=c++17 $(MAGICK_CXXFLAGS) $(MAGICK_DEFINES)
+LDFLAGS += $(MAGICK_LDFLAGS) -lcurl -lssl -lcrypto
+
+# Add external directory to include path
+CXXFLAGS += -Iexternal
+ 
 OBJECTS=hello-world.o ip-display.o weather-display.o perlin-noise.o
 BINARIES=hello-world ip-display weather-display perlin-noise
 
