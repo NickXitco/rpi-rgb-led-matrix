@@ -147,7 +147,8 @@ int main(int argc, char *argv[]) {
     // Create background animation
     PerlinNoiseAnimation background(offscreen);
     auto last_frame = high_resolution_clock::now();
-    auto last_weather_update = last_frame;
+    // The first loop should get the weather data
+    auto last_weather_update = last_frame + seconds(500);
 
     while (!interrupt_received) {
         auto now = high_resolution_clock::now();
@@ -158,8 +159,8 @@ int main(int argc, char *argv[]) {
         background.Update(delta_time);
         background.Draw();
 
-        // Update weather data every minute
-        if (duration<float>(now - last_weather_update).count() >= 60.0f) {
+        // Update weather data every 5 minutes
+        if (duration<float>(now - last_weather_update).count() >= 300.0f) {
             json weather_data = GetWeatherData(api_key);
             
             if (!weather_data.empty()) {
