@@ -281,6 +281,7 @@ RGBMatrix::Options::Options() :
   rows(32), cols(64), chain_length(1), parallel(1),
   pwm_bits(internal::Framebuffer::kDefaultBitPlanes),
 
+
 #ifdef LSB_PWM_NANOSECONDS
     pwm_lsb_nanoseconds(LSB_PWM_NANOSECONDS),
 #else
@@ -318,7 +319,7 @@ RGBMatrix::Options::Options() :
 #endif
   led_rgb_sequence("RGB"),
   pixel_mapper_config(NULL),
-  panel_type(NULL),
+  panel_type("FM6127"),
 #ifdef FIXED_FRAME_MICROSECONDS
   limit_refresh_rate_hz(1e6 / FIXED_FRAME_MICROSECONDS),
 #else

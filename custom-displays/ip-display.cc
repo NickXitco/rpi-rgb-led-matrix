@@ -59,6 +59,7 @@ int main(int argc, char *argv[]) {
   defaults.chain_length = 1;
   defaults.parallel = 1;
   defaults.show_refresh_rate = true;
+  defaults.panel_type = "FM6127";
 
   // Set up signal handler for clean exit
   signal(SIGTERM, InterruptHandler);
