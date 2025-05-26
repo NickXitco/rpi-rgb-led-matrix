@@ -37,7 +37,7 @@ public:
     const float speed = 0.5f;  // Units per second
     
     // Get initial time
-    auto last_frame = high_resolution_clock::now(); 
+    auto last_frame = high_resolution_clock::now();
     
     while (!interrupt_received) {
       // Calculate time since last frame

@@ -1,5 +1,6 @@
 #include "led-matrix.h"
 #include "graphics.h"
+#include "animation.h"
 
 #include <unistd.h>
 #include <math.h>
@@ -11,9 +12,11 @@
 #include <fstream>
 #include <sstream>
 #include <Magick++.h>
+#include <chrono>
 
 using namespace rgb_matrix;
 using json = nlohmann::json;
+using namespace std::chrono;
 
 volatile bool interrupt_received = false;
 static void InterruptHandler(int signo) {
@@ -134,41 +137,54 @@ int main(int argc, char *argv[]) {
     FrameCanvas *offscreen = matrix->CreateFrameCanvas();
 
     rgb_matrix::Font font;
-    if (!font.LoadFont("../fonts/5x7.bdf")) {
+    if (!font.LoadFont("../fonts/8x13B.bdf")) {
         fprintf(stderr, "Couldn't load font\n");
         return 1;
     }
 
-    Color temp_color(255, 255, 0);    // Yellow for temperature
+    Color temp_color(178, 216, 206);
+
+    // Create background animation
+    PerlinNoiseAnimation background(offscreen);
+    auto last_frame = high_resolution_clock::now();
+    auto last_weather_update = last_frame;
 
     while (!interrupt_received) {
-        offscreen->Clear();
+        auto now = high_resolution_clock::now();
+        float delta_time = duration<float>(now - last_frame).count();
+        last_frame = now;
 
-        json weather_data = GetWeatherData(api_key);
-        
-        if (!weather_data.empty()) {
-            fprintf(stderr, "Weather data: %s\n", weather_data.dump().c_str());
-            try {
-                // Get temperature and weather icon
-                double temp = weather_data["main"]["temp"].get<double>();
-                std::string icon = weather_data["weather"][0]["icon"].get<std::string>();
-                
-                // Draw weather icon
-                DrawWeatherIcon(offscreen, icon, 0, 0);
-                
-                // Draw temperature
-                std::string temp_str = std::to_string(static_cast<int>(round(temp))) + "°F";
-                rgb_matrix::DrawText(offscreen, font, 34, 25, temp_color, temp_str.c_str());
-            } catch (const std::exception& e) {
-                fprintf(stderr, "Error processing weather data: %s\n", e.what());
-                rgb_matrix::DrawText(offscreen, font, 2, 15, temp_color, "Error");
+        // Update background animation
+        background.Update(delta_time);
+        background.Draw();
+
+        // Update weather data every minute
+        if (duration<float>(now - last_weather_update).count() >= 60.0f) {
+            json weather_data = GetWeatherData(api_key);
+            
+            if (!weather_data.empty()) {
+                try {
+                    // Get temperature and weather icon
+                    double temp = weather_data["main"]["temp"].get<double>();
+                    std::string icon = weather_data["weather"][0]["icon"].get<std::string>();
+                    
+                    // Draw weather icon
+                    DrawWeatherIcon(offscreen, icon, 0, 0);
+                    
+                    // Draw temperature
+                    std::string temp_str = std::to_string(static_cast<int>(round(temp))) + "°F";
+                    rgb_matrix::DrawText(offscreen, font, 29, 23, temp_color, temp_str.c_str());
+                } catch (const std::exception& e) {
+                    fprintf(stderr, "Error processing weather data: %s\n", e.what());
+                    rgb_matrix::DrawText(offscreen, font, 2, 15, temp_color, "Error");
+                }
+            } else {
+                rgb_matrix::DrawText(offscreen, font, 2, 15, temp_color, "No Data");
             }
-        } else {
-            rgb_matrix::DrawText(offscreen, font, 2, 15, temp_color, "No Data");
+            last_weather_update = now;
         }
 
         offscreen = matrix->SwapOnVSync(offscreen);
-        sleep(60);  // Update every minute
     }
 
     delete matrix;
