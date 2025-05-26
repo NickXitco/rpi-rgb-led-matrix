@@ -219,11 +219,7 @@ int main(int argc, char *argv[]) {
         auto now = high_resolution_clock::now();
         float delta_time = duration<float>(now - last_frame).count();
         last_frame = now;
-
-        // Update background animation
-        background.Update(delta_time);
-        background.Draw();
-
+        
         // Draw current weather data
         {
             std::lock_guard<std::mutex> lock(weather_data.mutex);
@@ -239,6 +235,11 @@ int main(int argc, char *argv[]) {
                 rgb_matrix::DrawText(offscreen, font, 2, 15, temp_color, "No Data");
             }
         }
+ 
+        // Update background animation
+        background.Update(delta_time);
+        background.Draw();
+
 
         // Update weather data every 5 minutes
         if (duration<float>(now - last_weather_update).count() >= 300.0f) {
