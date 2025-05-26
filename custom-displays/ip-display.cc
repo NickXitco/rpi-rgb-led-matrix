@@ -101,8 +101,14 @@ int main(int argc, char *argv[]) {
     // Swap the offscreen canvas with the onscreen one
     offscreen = matrix->SwapOnVSync(offscreen);
 
-    // Update every 2 seconds
-    sleep(2);
+    // If we have a valid IP (contains dots), display for 10 seconds and exit
+    if (ip.find('.') != std::string::npos) {
+        sleep(10);
+        break;
+    }
+    
+    // Otherwise keep checking every second
+    sleep(1);
   }
 
   // Clean up
