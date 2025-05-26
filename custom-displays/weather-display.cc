@@ -229,7 +229,7 @@ int main(int argc, char *argv[]) {
                 
                 // Draw temperature
                 std::string temp_str = std::to_string(static_cast<int>(round(weather_data.temperature))) + "°F";
-                fprintf(stderr, "Drawing temperature: %s\n", temp_str.c_str());
+                fprintf(stderr, "Drawing temperature: %s on canvas %p\n", temp_str.c_str(), (void*)offscreen);
                 rgb_matrix::DrawText(offscreen, font, 31, 22, temp_color, temp_str.c_str());
             } else {
                 rgb_matrix::DrawText(offscreen, font, 2, 15, temp_color, "No Data");
@@ -238,6 +238,7 @@ int main(int argc, char *argv[]) {
  
         // Update background animation
         background.Update(delta_time);
+        fprintf(stderr, "Drawing background on canvas %p\n", (void*)offscreen);
         background.Draw();
 
 
@@ -275,7 +276,9 @@ int main(int argc, char *argv[]) {
             last_weather_update = now;
         }
 
+        fprintf(stderr, "Swapping frame from %p\n", (void*)offscreen);
         offscreen = matrix->SwapOnVSync(offscreen);
+        fprintf(stderr, "New frame buffer: %p\n", (void*)offscreen);
     }
 
     delete matrix;

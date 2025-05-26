@@ -39,6 +39,7 @@ public:
     }
 
     void Draw() override {
+        fprintf(stderr, "Drawing Perlin noise over %dx%d canvas\n", canvas()->width(), canvas()->height());
         for (int x = 0; x < canvas()->width(); ++x) {
             for (int y = 0; y < canvas()->height(); ++y) {
                 float nx = x * scale;
@@ -52,6 +53,7 @@ public:
                 canvas()->SetPixel(x, y, value * 0.20f, value * 0.10f, value * 1.0f);
             }
         }
+        fprintf(stderr, "Finished drawing Perlin noise\n");
     }
 
 private:
