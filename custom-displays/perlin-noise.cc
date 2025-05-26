@@ -17,16 +17,13 @@ static void InterruptHandler(int signo) {
 }
 
 class PerlinNoiseGenerator {
-protected:
+public:
   PerlinNoiseGenerator(Canvas *canvas) : canvas_(canvas) {
     // Initialize random seed
     std::random_device rd;
     seed = rd();
   }
 
-  inline Canvas *canvas() { return canvas_; }
-
-public:
   virtual ~PerlinNoiseGenerator() {}
   
   void Run() {
@@ -43,7 +40,8 @@ public:
           float nz = z;
           
           // stb_perlin_noise3 returns values between -1 and 1
-          float n = (stb_perlin_noise3(nx, ny, nz, 0, 0, 0, seed) + 1.0f) * 0.5f;
+          // The last three parameters (0,0,0) are wrap values - we don't need wrapping
+          float n = (stb_perlin_noise3(nx, ny, nz, 0, 0, 0) + 1.0f) * 0.5f;
           
           // Convert to grayscale (0-255)
           uint8_t value = static_cast<uint8_t>(n * 255);
@@ -60,6 +58,9 @@ public:
       usleep(50 * 1000);
     }
   }
+
+protected:
+  inline Canvas *canvas() { return canvas_; }
 
 private:
   Canvas *const canvas_;
