@@ -219,6 +219,10 @@ int main(int argc, char *argv[]) {
         auto now = high_resolution_clock::now();
         float delta_time = duration<float>(now - last_frame).count();
         last_frame = now;
+
+        // Update background animation
+        background.Update(delta_time);
+        background.Draw();
         
         // Draw current weather data
         {
@@ -229,19 +233,12 @@ int main(int argc, char *argv[]) {
                 
                 // Draw temperature
                 std::string temp_str = std::to_string(static_cast<int>(round(weather_data.temperature))) + "°F";
-                fprintf(stderr, "Drawing temperature: %s on canvas %p\n", temp_str.c_str(), (void*)offscreen);
                 rgb_matrix::DrawText(offscreen, font, 31, 22, temp_color, temp_str.c_str());
             } else {
                 rgb_matrix::DrawText(offscreen, font, 2, 15, temp_color, "No Data");
             }
         }
  
-        // Update background animation
-        background.Update(delta_time);
-        fprintf(stderr, "Drawing background on canvas %p\n", (void*)offscreen);
-        background.Draw();
-
-
         // Update weather data every 5 minutes
         if (duration<float>(now - last_weather_update).count() >= 300.0f) {
             json new_data = GetWeatherData(api_key);
@@ -276,10 +273,8 @@ int main(int argc, char *argv[]) {
             last_weather_update = now;
         }
 
-        fprintf(stderr, "Swapping frame from %p\n", (void*)offscreen);
         offscreen = matrix->SwapOnVSync(offscreen);
-        fprintf(stderr, "New frame buffer: %p\n", (void*)offscreen);
-        background.SetCanvas(offscreen);  // Update the animation's canvas pointer
+        background.SetCanvas(offscreen);
     }
 
     delete matrix;

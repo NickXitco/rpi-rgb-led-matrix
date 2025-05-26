@@ -47,6 +47,7 @@ int main(int argc, char *argv[]) {
     animation.Draw();
     
     offscreen = matrix->SwapOnVSync(offscreen);
+    animation.SetCanvas(offscreen);
   }
   
   delete matrix;
