@@ -1,8 +1,8 @@
 CFLAGS=-Wall -O3 -g -Wextra -Wno-unused-parameter
-CXXFLAGS=$(CFLAGS)
+CXXFLAGS=$(CFLAGS) -std=c++17
 
-OBJECTS=hello-world.o ip-display.o weather-display.o
-BINARIES=hello-world ip-display weather-display
+OBJECTS=hello-world.o ip-display.o weather-display.o perlin-noise.o
+BINARIES=hello-world ip-display weather-display perlin-noise
 
 # Where our library resides. You mostly only need to change the
 # RGB_LIB_DISTRIBUTION, this is where the library is checked out.
@@ -28,6 +28,9 @@ ip-display : ip-display.o $(RGB_LIBRARY)
 	$(CXX) $< -o $@ $(LDFLAGS)
 
 weather-display : weather-display.o $(RGB_LIBRARY)
+	$(CXX) $< -o $@ $(LDFLAGS)
+
+perlin-noise : perlin-noise.o $(RGB_LIBRARY)
 	$(CXX) $< -o $@ $(LDFLAGS)
 
 %.o : %.cc
