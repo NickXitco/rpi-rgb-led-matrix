@@ -11,8 +11,10 @@
 #include <signal.h>
 #include <string.h>
 #include <random>
+#include <chrono>
 
 using namespace rgb_matrix;
+using namespace std::chrono;
 
 volatile bool interrupt_received = false;
 static void InterruptHandler(int signo) {
@@ -32,9 +34,20 @@ public:
   void Run() {
     float z = 0.0f;
     const float scale = 0.1f;  // Scale of the noise
-    const float speed = 0.01f; // Speed of animation
+    const float speed = 0.5f;  // Units per second
+    
+    // Get initial time
+    auto last_frame = high_resolution_clock::now(); 
     
     while (!interrupt_received) {
+      // Calculate time since last frame
+      auto now = high_resolution_clock::now();
+      float delta_time = duration<float>(now - last_frame).count();
+      last_frame = now;
+      
+      // Update z based on time
+      z += speed * delta_time; 
+      
       for (int x = 0; x < canvas()->width(); ++x) {
         for (int y = 0; y < canvas()->height(); ++y) {
           // Generate noise value between 0 and 1
@@ -45,7 +58,7 @@ public:
           // stb_perlin_noise3 returns values between -1 and 1
           // The last three parameters (0,0,0) are wrap values - we don't need wrapping
           float n = (stb_perlin_noise3(nx, ny, nz, 0, 0, 0) + 1.0f) * 0.5f;
-
+          
           // Ease the noise value
           float eased = (n * n * n);
           
@@ -58,11 +71,7 @@ public:
         }
       }
       
-      // Increment z for animation
-      z += speed;
-      
-      // Small delay to control animation speed
-      usleep(50 * 1000);
+      // No sleep - run as fast as possible
     }
   }
 
