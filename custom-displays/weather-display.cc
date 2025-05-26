@@ -279,6 +279,7 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "Swapping frame from %p\n", (void*)offscreen);
         offscreen = matrix->SwapOnVSync(offscreen);
         fprintf(stderr, "New frame buffer: %p\n", (void*)offscreen);
+        background.SetCanvas(offscreen);  // Update the animation's canvas pointer
     }
 
     delete matrix;

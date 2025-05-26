@@ -21,8 +21,11 @@ public:
     // Draw the animation to the canvas
     virtual void Draw() = 0;
 
+    // Update the canvas pointer
+    void SetCanvas(Canvas *canvas) { canvas_ = canvas; }
+
 protected:
-    Canvas *const canvas_;
+    Canvas *canvas_;  // Remove const to allow updating
     inline Canvas *canvas() { return canvas_; }
 };
 
