@@ -147,6 +147,7 @@ int main(int argc, char *argv[]) {
         json weather_data = GetWeatherData(api_key);
         
         if (!weather_data.empty()) {
+            fprintf(stderr, "Weather data: %s\n", weather_data.dump().c_str());
             try {
                 // Get temperature and weather icon
                 double temp = weather_data["main"]["temp"].get<double>();
@@ -159,6 +160,7 @@ int main(int argc, char *argv[]) {
                 std::string temp_str = std::to_string(static_cast<int>(round(temp))) + "°F";
                 rgb_matrix::DrawText(offscreen, font, 34, 25, temp_color, temp_str.c_str());
             } catch (const std::exception& e) {
+                fprintf(stderr, "Error processing weather data: %s\n", e.what());
                 rgb_matrix::DrawText(offscreen, font, 2, 15, temp_color, "Error");
             }
         } else {
