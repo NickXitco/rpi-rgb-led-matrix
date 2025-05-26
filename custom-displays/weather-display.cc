@@ -135,10 +135,13 @@ void DrawWeatherIcon(FrameCanvas* canvas, const WeatherIcon& icon, int x, int y)
     for (int i = 0; i < icon.height; i++) {
         for (int j = 0; j < icon.width; j++) {
             size_t idx = (i * icon.width + j) * 4;
-            canvas->SetPixel(x + j, y + i,
-                           icon.pixels[idx],
-                           icon.pixels[idx + 1],
-                           icon.pixels[idx + 2]);
+            // Only set pixel if it's not black (all channels > 0)
+            if (icon.pixels[idx] > 0 || icon.pixels[idx + 1] > 0 || icon.pixels[idx + 2] > 0) {
+                canvas->SetPixel(x + j, y + i,
+                               icon.pixels[idx],
+                               icon.pixels[idx + 1],
+                               icon.pixels[idx + 2]);
+            }
         }
     }
 }
