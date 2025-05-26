@@ -14,7 +14,7 @@ RGB_LIBRARY=$(RGB_LIBDIR)/lib$(RGB_LIBRARY_NAME).a
 LDFLAGS+=-L$(RGB_LIBDIR) -l$(RGB_LIBRARY_NAME) -lrt -lm -lpthread -lcurl -lMagick++-6.Q16
 
 # Additional include paths for nlohmann/json and ImageMagick
-CXXFLAGS+=-I/usr/include/ImageMagick-6
+CXXFLAGS+=-I/usr/include/arm-linux-gnueabihf/ImageMagick-6
 
 all : $(BINARIES)
 
