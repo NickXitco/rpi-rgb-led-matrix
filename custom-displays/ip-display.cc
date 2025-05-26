@@ -98,7 +98,6 @@ int main(int argc, char *argv[]) {
         y_pos += 8;  // Move down for next line
     }
 
-
     // Swap the offscreen canvas with the onscreen one
     offscreen = matrix->SwapOnVSync(offscreen);
 
@@ -106,12 +105,8 @@ int main(int argc, char *argv[]) {
     if (ip.find('.') != std::string::npos) {
         sleep(10);
         matrix->Clear();
-        delete matrix;
-        system("sudo /bin/systemctl stop led-ip.service");
-        return 0;
+        break;
     }
-    
-
 
     // Otherwise keep checking every second
     sleep(1);
