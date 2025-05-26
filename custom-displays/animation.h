@@ -3,6 +3,8 @@
 #include "led-matrix.h"
 #include <chrono>
 #include <random>
+
+#define STB_PERLIN_IMPLEMENTATION
 #include "external/stb_perlin.h"
 
 using namespace rgb_matrix;
