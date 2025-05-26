@@ -233,6 +233,7 @@ int main(int argc, char *argv[]) {
                 
                 // Draw temperature
                 std::string temp_str = std::to_string(static_cast<int>(round(weather_data.temperature))) + "°F";
+                fprintf(stderr, "Drawing temperature: %s\n", temp_str.c_str());
                 rgb_matrix::DrawText(offscreen, font, 31, 22, temp_color, temp_str.c_str());
             } else {
                 rgb_matrix::DrawText(offscreen, font, 2, 15, temp_color, "No Data");
@@ -244,17 +245,30 @@ int main(int argc, char *argv[]) {
             json new_data = GetWeatherData(api_key);
             if (!new_data.empty()) {
                 try {
-                    std::lock_guard<std::mutex> lock(weather_data.mutex);
-                    weather_data.temperature = new_data["current"]["temp"].get<double>();
+                    // Create new weather data instance
+                    WeatherData new_weather;
+                    new_weather.temperature = new_data["current"]["temp"].get<double>();
                     std::string new_icon_code = new_data["current"]["weather"][0]["icon"].get<std::string>();
                     
                     // Only fetch new icon if the code has changed
                     if (new_icon_code != weather_data.icon_code) {
-                        weather_data.icon_code = new_icon_code;
-                        weather_data.icon = FetchWeatherIcon(weather_data.icon_code);
+                        new_weather.icon_code = new_icon_code;
+                        new_weather.icon = FetchWeatherIcon(new_weather.icon_code);
+                    } else {
+                        // Copy existing icon data
+                        new_weather.icon_code = weather_data.icon_code;
+                        new_weather.icon = weather_data.icon;
                     }
                     
-                    weather_data.has_data = true;
+                    new_weather.has_data = true;
+
+                    // Atomic swap of weather data
+                    {
+                        std::lock_guard<std::mutex> lock(weather_data.mutex);
+                        weather_data = std::move(new_weather);
+                    }
+                     
+                    fprintf(stderr, "Updated temperature to %.1f°F\n", weather_data.temperature);
                 } catch (const std::exception& e) {
                     fprintf(stderr, "Error processing weather data: %s\n", e.what());
                 }
