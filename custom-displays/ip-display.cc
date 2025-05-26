@@ -9,6 +9,8 @@
 #include <ifaddrs.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <sstream>
+#include <string>
 
 using namespace rgb_matrix;
 
@@ -74,7 +76,7 @@ int main(int argc, char *argv[]) {
   rgb_matrix::Font font;
   if (!font.LoadFont("../fonts/5x7.bdf")) {
     fprintf(stderr, "Couldn't load font\n");
-    return 1;
+    return 1; 
   }
 
   // Colors
@@ -86,9 +88,9 @@ int main(int argc, char *argv[]) {
 
     // Get current IP
     std::string ip = GetIPAddress();
-
-    int y_pos = 8;
-    std::stringstream ss(ip);
+    
+    int y_pos = 7;
+    std::istringstream ss(ip);
     std::string segment;
     while(std::getline(ss, segment, '.')) {
         rgb_matrix::DrawText(offscreen, font, 1, y_pos, ip_color, segment.c_str());
