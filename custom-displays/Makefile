@@ -1,5 +1,5 @@
 CFLAGS=-Wall -O3 -g -Wextra -Wno-unused-parameter
-CXXFLAGS=$(CFLAGS) -std=c++17
+CXXFLAGS=$(CFLAGS)
 
 OBJECTS=hello-world.o ip-display.o weather-display.o perlin-noise.o
 BINARIES=hello-world ip-display weather-display perlin-noise
