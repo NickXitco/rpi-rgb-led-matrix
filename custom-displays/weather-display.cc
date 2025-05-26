@@ -245,29 +245,27 @@ int main(int argc, char *argv[]) {
             json new_data = GetWeatherData(api_key);
             if (!new_data.empty()) {
                 try {
-                    // Create new weather data instance
-                    WeatherData new_weather;
-                    new_weather.temperature = new_data["current"]["temp"].get<double>();
+                    // Prepare new data
+                    double new_temp = new_data["current"]["temp"].get<double>();
                     std::string new_icon_code = new_data["current"]["weather"][0]["icon"].get<std::string>();
+                    WeatherIcon new_icon;
                     
                     // Only fetch new icon if the code has changed
                     if (new_icon_code != weather_data.icon_code) {
-                        new_weather.icon_code = new_icon_code;
-                        new_weather.icon = FetchWeatherIcon(new_weather.icon_code);
+                        new_icon = FetchWeatherIcon(new_icon_code);
                     } else {
-                        // Copy existing icon data
-                        new_weather.icon_code = weather_data.icon_code;
-                        new_weather.icon = weather_data.icon;
+                        new_icon = weather_data.icon;
                     }
-                    
-                    new_weather.has_data = true;
 
-                    // Atomic swap of weather data
+                    // Update weather data atomically
                     {
                         std::lock_guard<std::mutex> lock(weather_data.mutex);
-                        weather_data = std::move(new_weather);
+                        weather_data.temperature = new_temp;
+                        weather_data.icon_code = new_icon_code;
+                        weather_data.icon = new_icon;
+                        weather_data.has_data = true;
                     }
-                     
+                    
                     fprintf(stderr, "Updated temperature to %.1f°F\n", weather_data.temperature);
                 } catch (const std::exception& e) {
                     fprintf(stderr, "Error processing weather data: %s\n", e.what());
