@@ -100,8 +100,8 @@ int main(int argc, char *argv[]) {
     // Swap the offscreen canvas with the onscreen one
     offscreen = matrix->SwapOnVSync(offscreen);
 
-    // Update every 5 seconds
-    sleep(5);
+    // Update every 2 seconds
+    sleep(2);
   }
 
   // Clean up
