@@ -4,3 +4,13 @@
 *.so
 .envrc
 .direnv
+
+ 
+# Credential files - DO NOT COMMIT
+credentials.env
+.env
+*.key
+
+# Build artifacts
+*.o
+multi-screen-demo 
