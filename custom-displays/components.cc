@@ -4,6 +4,9 @@
 #include <cmath>
 #include <iostream>
 #include <mutex>
+#include <future>
+#include <atomic>
+#include <chrono>
 #include <curl/curl.h>
 
 // Include STB Perlin implementation (only in this file)
@@ -334,7 +337,7 @@ MarqueeTextOverlay::MarqueeTextOverlay(const std::string &name, const std::strin
     : TextOverlay(name, text, color), max_display_width_(max_display_width), character_width_(character_width),
       scroll_speed_(20.0f), pause_duration_(2.0f), scroll_offset_(0.0f),
       pause_timer_(0.0f), text_width_(0), is_scrolling_(false),
-      needs_scrolling_(false), buffer_width_(0), buffer_height_(0)
+      needs_scrolling_(false), scroll_direction_(true), buffer_width_(0), buffer_height_(0)
 {
 }
 
@@ -365,13 +368,32 @@ void MarqueeTextOverlay::Update(float delta_time)
     }
     else
     {
-        // Scroll the text
-        scroll_offset_ += scroll_speed_ * delta_time;
-
-        // If we've scrolled past the end, reset
-        if (scroll_offset_ >= text_width_)
+        // Scroll the text based on direction
+        if (scroll_direction_) // Right-to-left
         {
-            ResetScrolling();
+            scroll_offset_ += scroll_speed_ * delta_time;
+
+            // If we've scrolled past the end, reverse direction and pause
+            if (scroll_offset_ >= (text_width_ - max_display_width_))
+            {
+                scroll_offset_ = text_width_ - max_display_width_;
+                scroll_direction_ = false; // Switch to left-to-right
+                is_scrolling_ = false;     // Pause before reversing
+                pause_timer_ = 0.0f;
+            }
+        }
+        else // Left-to-right
+        {
+            scroll_offset_ -= scroll_speed_ * delta_time;
+
+            // If we've scrolled back to the beginning, reverse direction and pause
+            if (scroll_offset_ <= 0.0f)
+            {
+                scroll_offset_ = 0.0f;
+                scroll_direction_ = true; // Switch to right-to-left
+                is_scrolling_ = false;    // Pause before reversing
+                pause_timer_ = 0.0f;
+            }
         }
     }
 }
@@ -435,6 +457,7 @@ void MarqueeTextOverlay::ResetScrolling()
     scroll_offset_ = 0.0f;
     pause_timer_ = 0.0f;
     is_scrolling_ = false;
+    scroll_direction_ = true; // Always start right-to-left
 
     if (font_loaded_)
     {
@@ -459,31 +482,76 @@ int MarqueeTextOverlay::CalculateTextWidth(const std::string &text)
 
 void MarqueeTextOverlay::DrawScrollingText(Canvas *canvas, const Color &color)
 {
-    // Draw text with pixel-perfect clipping using fixed character width
+    // Draw text with custom pixel-level clipping to marquee bounds
     int current_x = x_ - static_cast<int>(scroll_offset_);
+    int marquee_left = x_;
+    int marquee_right = x_ + max_display_width_;
 
     for (char c : text_)
     {
-        if (c < 32 || c > 126) // Skip non-printable characters
+        // Skip non-printable characters
+        if (c < 32 || c > 126)
             continue;
 
-        // Check if this character is visible in the display area
-        if (current_x + character_width_ > x_ && current_x < x_ + max_display_width_)
-        {
-            // Draw the character if it's at least partially visible
-            if (current_x >= x_ - character_width_ && current_x < x_ + max_display_width_)
-            {
-                std::string single_char(1, c);
-                rgb_matrix::DrawText(canvas, font_, current_x, y_, color, single_char.c_str());
-            }
-        }
+        // Draw character with custom clipping to marquee bounds
+        DrawClippedGlyph(canvas, current_x, y_, color, c, marquee_left, marquee_right);
 
         current_x += character_width_;
 
-        // Early exit if we're past the visible area
-        if (current_x >= x_ + max_display_width_)
+        // Early exit optimization - if character start is way past marquee, stop
+        if (current_x > marquee_right + character_width_)
             break;
     }
+}
+
+int MarqueeTextOverlay::DrawClippedGlyph(Canvas *canvas, int x_pos, int y_pos, const Color &color,
+                                         char glyph, int clip_left, int clip_right)
+{
+    // Manual glyph drawing with pixel-perfect clipping
+    // This creates a Canvas subclass that clips SetPixel calls to marquee bounds
+
+    int char_width = font_.CharacterWidth(glyph);
+    if (char_width <= 0)
+        return 0;
+
+    // Check if character is completely outside marquee bounds
+    if (x_pos + char_width <= clip_left || x_pos >= clip_right)
+    {
+        return char_width;
+    }
+
+    // Create a clipping wrapper that inherits from Canvas
+    class ClippedCanvas : public Canvas
+    {
+    private:
+        Canvas *target_;
+        int clip_left_, clip_right_;
+
+    public:
+        ClippedCanvas(Canvas *target, int clip_left, int clip_right)
+            : target_(target), clip_left_(clip_left), clip_right_(clip_right) {}
+
+        void SetPixel(int x, int y, uint8_t r, uint8_t g, uint8_t b) override
+        {
+            if (x >= clip_left_ && x < clip_right_)
+            {
+                target_->SetPixel(x, y, r, g, b);
+            }
+        }
+
+        int width() const override { return target_->width(); }
+        int height() const override { return target_->height(); }
+
+        // Required pure virtual methods (unused but must be implemented)
+        void Clear() override {}
+        void Fill(uint8_t r, uint8_t g, uint8_t b) override {}
+    };
+
+    // Create our clipping canvas and draw the glyph through it
+    ClippedCanvas clipped_canvas(canvas, clip_left, clip_right);
+
+    // Use the font's DrawGlyph method with our clipping canvas for pixel-perfect clipping
+    return font_.DrawGlyph(&clipped_canvas, x_pos, y_pos, color, glyph);
 }
 
 // SpotifyOverlay Implementation
@@ -491,7 +559,7 @@ SpotifyOverlay::SpotifyOverlay(const std::string &name, const std::string &clien
                                const std::string &client_secret, const std::string &refresh_token)
     : Overlay(name), client_id_(client_id), client_secret_(client_secret), refresh_token_(refresh_token),
       polling_interval_(5.0f), time_since_poll_(0.0f), time_since_token_refresh_(0.0f),
-      text_color_(255, 255, 255)
+      text_color_(255, 255, 255), api_call_in_progress_(false)
 {
 }
 
@@ -514,10 +582,12 @@ void SpotifyOverlay::Initialize()
     artist_marquee_->SetFontFile("../fonts/4x6.bdf");
 
     // Configure scrolling parameters
-    track_marquee_->SetScrollSpeed(12.0f);
-    track_marquee_->SetPauseDuration(2.0f);
-    artist_marquee_->SetScrollSpeed(12.0f);
-    artist_marquee_->SetPauseDuration(2.0f);
+    const float scroll_speed = 7.5f;
+    const float pause_duration = 4.0f;
+    track_marquee_->SetScrollSpeed(scroll_speed);
+    track_marquee_->SetPauseDuration(pause_duration);
+    artist_marquee_->SetScrollSpeed(scroll_speed);
+    artist_marquee_->SetPauseDuration(pause_duration);
 
     // Initialize marquee overlays
     track_marquee_->Initialize();
@@ -535,13 +605,36 @@ void SpotifyOverlay::Initialize()
             {
                 try
                 {
+                    // Validate JSON structure before accessing
+                    if (!data.contains("item") || data["item"].is_null() ||
+                        !data.contains("is_playing") ||
+                        !data["item"].contains("name") ||
+                        !data["item"].contains("artists"))
+                    {
+                        fprintf(stderr, "Invalid Spotify JSON structure in initial fetch\n");
+                        return;
+                    }
+
                     std::lock_guard<std::mutex> lock(current_track_.mutex);
                     current_track_.track_name = data["item"]["name"].get<std::string>();
-                    current_track_.artist_name = data["item"]["artists"][0]["name"].get<std::string>();
+                    // Safely get artist name with bounds checking
+                    if (!data["item"]["artists"].empty() && data["item"]["artists"].is_array())
+                    {
+                        current_track_.artist_name = data["item"]["artists"][0]["name"].get<std::string>();
+                    }
+                    else
+                    {
+                        current_track_.artist_name = "Unknown Artist";
+                    }
                     current_track_.is_playing = data["is_playing"].get<bool>();
+                    current_track_.progress_ms = data.contains("progress_ms") && !data["progress_ms"].is_null() ? data["progress_ms"].get<int>() : 0;
+                    current_track_.duration_ms = data["item"].contains("duration_ms") && !data["item"]["duration_ms"].is_null() ? data["item"]["duration_ms"].get<int>() : 0;
+
+                    fprintf(stderr, "Initial Spotify data - Progress: %d ms, Duration: %d ms\n", current_track_.progress_ms, current_track_.duration_ms);
 
                     // Get album art URL (use smallest image)
-                    if (!data["item"]["album"]["images"].empty())
+                    if (data["item"].contains("album") && data["item"]["album"].contains("images") &&
+                        !data["item"]["album"]["images"].empty())
                     {
                         auto images = data["item"]["album"]["images"];
                         current_track_.album_art_url = images.back()["url"].get<std::string>();
@@ -564,76 +657,101 @@ void SpotifyOverlay::Update(float delta_time)
     time_since_poll_ += delta_time;
     time_since_token_refresh_ += delta_time;
 
-    // Refresh access token every 55 minutes (3300 seconds) to ensure buffer
-    if (time_since_token_refresh_ >= 3300.0f && !refresh_token_.empty())
+    // Refresh access token every 55 minutes (3300 seconds) to ensure buffer (non-blocking)
+    if (time_since_token_refresh_ >= 3300.0f && !refresh_token_.empty() && !api_call_in_progress_.load())
     {
-        std::string new_token = RefreshAccessToken();
-        if (!new_token.empty())
-        {
-            access_token_ = new_token;
-            time_since_token_refresh_ = 0.0f;
-            fprintf(stderr, "Refreshed Spotify access token\n");
-        }
+        api_call_in_progress_.store(true);
+        auto token_future = std::async(std::launch::async, [this]()
+                                       {
+            std::string new_token = RefreshAccessToken();
+            if (!new_token.empty())
+            {
+                access_token_ = new_token;
+                time_since_token_refresh_ = 0.0f;
+                fprintf(stderr, "Refreshed Spotify access token\n");
+            }
+            api_call_in_progress_.store(false); });
+        // Don't need to wait for token refresh, just prevent warning
+        (void)token_future;
     }
 
-    // Poll for currently playing track
-    if (time_since_poll_ >= polling_interval_ && !access_token_.empty())
+    // Poll for currently playing track (non-blocking)
+    if (time_since_poll_ >= polling_interval_ && !access_token_.empty() && !api_call_in_progress_.load())
     {
-        json data = FetchCurrentlyPlaying();
-        if (!data.empty())
-        {
-            try
+        // Start async API call
+        api_call_in_progress_.store(true);
+        api_future_ = std::async(std::launch::async, [this]()
+                                 {
+            json data = FetchCurrentlyPlaying();
+            if (!data.empty())
             {
-                std::string new_track_name;
-                std::string new_artist_name;
-                std::string new_album_art_url;
-                bool new_is_playing = false;
-                SpotifyAlbumArt new_album_art;
-
-                if (!data["item"].is_null())
+                try
                 {
-                    new_track_name = data["item"]["name"].get<std::string>();
-                    new_artist_name = data["item"]["artists"][0]["name"].get<std::string>();
-                    new_is_playing = data["is_playing"].get<bool>();
+                    std::string new_track_name;
+                    std::string new_artist_name;
+                    std::string new_album_art_url;
+                    bool new_is_playing = false;
+                    int new_progress_ms = 0;
+                    int new_duration_ms = 0;
+                    SpotifyAlbumArt new_album_art;
 
-                    // Get album art URL (use smallest image for faster download)
-                    if (!data["item"]["album"]["images"].empty())
+                    if (!data["item"].is_null())
                     {
-                        auto images = data["item"]["album"]["images"];
-                        new_album_art_url = images.back()["url"].get<std::string>();
-
-                        // Only fetch new album art if URL changed
-                        if (new_album_art_url != current_track_.album_art_url)
+                        new_track_name = data["item"]["name"].get<std::string>();
+                        // Safely get artist name with bounds checking
+                        if (!data["item"]["artists"].empty() && data["item"]["artists"].is_array()) 
                         {
-                            new_album_art = FetchAlbumArt(new_album_art_url);
+                            new_artist_name = data["item"]["artists"][0]["name"].get<std::string>();
                         }
                         else
                         {
-                            new_album_art = current_track_.album_art;
+                            new_artist_name = "Unknown Artist";
+                        }
+                        new_is_playing = data["is_playing"].get<bool>();
+                        new_progress_ms = data.contains("progress_ms") && !data["progress_ms"].is_null() ? data["progress_ms"].get<int>() : 0;
+                        new_duration_ms = data["item"].contains("duration_ms") && !data["item"]["duration_ms"].is_null() ? data["item"]["duration_ms"].get<int>() : 0;
+
+                        // Get album art URL (use smallest image for faster download)
+                        if (!data["item"]["album"]["images"].empty())
+                        {
+                            auto images = data["item"]["album"]["images"];
+                            new_album_art_url = images.back()["url"].get<std::string>();
+
+                            // Only fetch new album art if URL changed
+                            if (new_album_art_url != current_track_.album_art_url)
+                            {
+                                new_album_art = FetchAlbumArt(new_album_art_url);
+                            }
+                            else
+                            {
+                                new_album_art = current_track_.album_art;
+                            }
                         }
                     }
-                }
 
-                // Update track data atomically
+                    // Update track data atomically
+                    {
+                        std::lock_guard<std::mutex> lock(current_track_.mutex);
+                        current_track_.track_name = new_track_name;
+                        current_track_.artist_name = new_artist_name;
+                        current_track_.album_art_url = new_album_art_url;
+                        current_track_.album_art = new_album_art;
+                        current_track_.is_playing = new_is_playing;
+                        current_track_.progress_ms = new_progress_ms;
+                        current_track_.duration_ms = new_duration_ms;
+                        current_track_.has_data = !new_track_name.empty();
+                    }
+
+                    fprintf(stderr, "Updated Spotify: %s by %s (%s) - Progress: %d/%d ms\n",
+                            new_track_name.c_str(), new_artist_name.c_str(),
+                            new_is_playing ? "playing" : "paused", new_progress_ms, new_duration_ms);
+                }
+                catch (const std::exception &e)
                 {
-                    std::lock_guard<std::mutex> lock(current_track_.mutex);
-                    current_track_.track_name = new_track_name;
-                    current_track_.artist_name = new_artist_name;
-                    current_track_.album_art_url = new_album_art_url;
-                    current_track_.album_art = new_album_art;
-                    current_track_.is_playing = new_is_playing;
-                    current_track_.has_data = !new_track_name.empty();
+                    fprintf(stderr, "Error processing Spotify data: %s\n", e.what());
                 }
-
-                fprintf(stderr, "Updated Spotify: %s by %s (%s)\n",
-                        new_track_name.c_str(), new_artist_name.c_str(),
-                        new_is_playing ? "playing" : "paused");
             }
-            catch (const std::exception &e)
-            {
-                fprintf(stderr, "Error processing Spotify data: %s\n", e.what());
-            }
-        }
+            api_call_in_progress_.store(false); });
         time_since_poll_ = 0.0f;
     }
 
@@ -686,6 +804,13 @@ void SpotifyOverlay::Draw(Canvas *canvas)
             Color text_color(text_color_.r, text_color_.g, text_color_.b);
             rgb_matrix::DrawText(canvas, font_, x_ + 30, y_ + 7, text_color, current_track_.track_name.c_str());
             rgb_matrix::DrawText(canvas, font_, x_ + 30, y_ + 14, text_color, current_track_.artist_name.c_str());
+        }
+
+        // Draw progress bar (3 pixels tall, 32 pixels wide, positioned below the text)
+        if (current_track_.duration_ms > 0)
+        {
+            float progress = static_cast<float>(current_track_.progress_ms) / static_cast<float>(current_track_.duration_ms);
+            DrawProgressBar(canvas, x_ + 30, y_ + 20, 30, 2, progress);
         }
     }
     else
@@ -852,6 +977,51 @@ void SpotifyOverlay::DrawAlbumArt(Canvas *canvas, const SpotifyAlbumArt &art, in
                              art.pixels[idx],
                              art.pixels[idx + 1],
                              art.pixels[idx + 2]);
+        }
+    }
+}
+
+void SpotifyOverlay::DrawProgressBar(Canvas *canvas, int x, int y, int width, int height, float progress)
+{
+    // Validate inputs
+    if (!canvas || width <= 0 || height <= 0)
+        return;
+
+    // Clamp progress between 0 and 1
+    progress = std::max(0.0f, std::min(1.0f, progress));
+
+    // Get canvas dimensions for strict bounds checking
+    const int canvas_width = canvas->width();
+    const int canvas_height = canvas->height();
+
+    // Calculate filled width
+    const int filled_width = static_cast<int>(progress * width);
+
+    // Draw the progress bar with very strict bounds checking
+    for (int row = 0; row < height; row++)
+    {
+        const int pixel_y = y + row;
+        // Skip if row is outside canvas
+        if (pixel_y < 0 || pixel_y >= canvas_height)
+            continue;
+
+        for (int col = 0; col < width; col++)
+        {
+            const int pixel_x = x + col;
+            // Skip if column is outside canvas
+            if (pixel_x < 0 || pixel_x >= canvas_width)
+                continue;
+
+            if (col < filled_width)
+            {
+                // Filled portion - almost white
+                canvas->SetPixel(pixel_x, pixel_y, 240, 240, 240);
+            }
+            else
+            {
+                // Empty portion - dark gray
+                canvas->SetPixel(pixel_x, pixel_y, 32, 32, 32);
+            }
         }
     }
 }

@@ -7,6 +7,8 @@
 #include <mutex>
 #include <string>
 #include <vector>
+#include <atomic>
+#include <future>
 #include <curl/curl.h>
 #include <nlohmann/json.hpp>
 
@@ -154,6 +156,7 @@ private:
     int text_width_;        // Width of rendered text in pixels
     bool is_scrolling_;     // Whether currently scrolling
     bool needs_scrolling_;  // Whether text is long enough to need scrolling
+    bool scroll_direction_; // true = right-to-left, false = left-to-right
 
     // Off-screen buffer for text rendering
     std::vector<uint8_t> text_buffer_;
@@ -164,6 +167,8 @@ private:
     void ResetScrolling();
     int CalculateTextWidth(const std::string &text);
     void DrawScrollingText(Canvas *canvas, const Color &color);
+    int DrawClippedGlyph(Canvas *canvas, int x_pos, int y_pos, const Color &color,
+                         char glyph, int clip_left, int clip_right);
 };
 
 // Spotify Album Art structure
@@ -206,6 +211,10 @@ private:
     float time_since_token_refresh_;
     VisualColor text_color_;
 
+    // Threading for non-blocking API calls
+    std::atomic<bool> api_call_in_progress_;
+    std::future<void> api_future_;
+
     // Current track data
     struct CurrentTrack
     {
@@ -215,9 +224,11 @@ private:
         SpotifyAlbumArt album_art;
         bool is_playing;
         bool has_data;
+        int progress_ms;
+        int duration_ms;
         std::mutex mutex;
 
-        CurrentTrack() : is_playing(false), has_data(false) {}
+        CurrentTrack() : is_playing(false), has_data(false), progress_ms(0), duration_ms(0) {}
     } current_track_;
 
     // Font
@@ -234,6 +245,7 @@ private:
     json FetchCurrentlyPlaying();
     SpotifyAlbumArt FetchAlbumArt(const std::string &image_url);
     void DrawAlbumArt(Canvas *canvas, const SpotifyAlbumArt &art, int x, int y);
+    void DrawProgressBar(Canvas *canvas, int x, int y, int width, int height, float progress);
     std::string Base64Encode(const std::string &input);
 
     // CURL callback

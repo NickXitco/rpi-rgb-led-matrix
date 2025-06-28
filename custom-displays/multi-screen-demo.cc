@@ -138,7 +138,7 @@ void RunScreenCycling(DisplayManager &display_manager, const std::vector<std::st
             std::cout << " -> ";
     }
     std::cout << " (repeating)\n";
-    std::cout << "Each screen displays for 8 seconds. Press Ctrl+C to exit.\n";
+    std::cout << "Each screen displays for 120 seconds. Press Ctrl+C to exit.\n";
 
     // Run screen switching in a separate thread
 
@@ -217,12 +217,12 @@ int main(int argc, char *argv[])
     // Add screens to display manager
     // display_manager.AddScreen(perlin_screen);
     // display_manager.AddScreen(text_screen);
-    // display_manager.AddScreen(weather_screen);
-    // display_manager.AddScreen(dual_screen);
     display_manager.AddScreen(spotify_screen);
+    display_manager.AddScreen(weather_screen);
+    // display_manager.AddScreen(dual_screen);
 
     // Set up screen cycling and run the display
-    std::vector<std::string> screen_names = {"spotify"};
+    std::vector<std::string> screen_names = {"spotify", "weather"};
     RunScreenCycling(display_manager, screen_names, shared_background);
 
     delete matrix;
