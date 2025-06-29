@@ -9,6 +9,7 @@
 #include <vector>
 #include <atomic>
 #include <future>
+#include <thread>
 #include <curl/curl.h>
 #include <nlohmann/json.hpp>
 
@@ -55,6 +56,7 @@ class WeatherOverlay : public Overlay
 public:
     WeatherOverlay(const std::string &name = "weather",
                    const std::string &api_key = "");
+    ~WeatherOverlay();
 
     void Initialize() override;
     void Update(float delta_time) override;
@@ -76,7 +78,6 @@ private:
     double lat_;
     double lon_;
     float update_interval_;
-    float time_since_update_;
     VisualColor temp_color_;
 
     // Weather data
@@ -93,6 +94,12 @@ private:
 
     // Font
     rgb_matrix::Font font_;
+
+    // Background thread for weather updates
+    std::atomic<bool> background_thread_running_;
+    std::atomic<bool> initialized_;
+    std::thread background_thread_;
+    void BackgroundWeatherUpdate();
 
     // Helper methods
     json FetchWeatherData();
@@ -239,6 +246,7 @@ private:
     std::unique_ptr<MarqueeTextOverlay> artist_marquee_;
     std::string last_track_name_;
     std::string last_artist_name_;
+    bool force_text_refresh_; // Flag to force text refresh on next update
 
     // Helper methods
     std::string RefreshAccessToken();

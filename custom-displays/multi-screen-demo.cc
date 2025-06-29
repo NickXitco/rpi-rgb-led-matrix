@@ -64,6 +64,10 @@ std::shared_ptr<Screen> CreateWeatherScreen(std::shared_ptr<PerlinNoiseBackgroun
     weather_overlay->SetLocation(40.747435, -73.993702); // NYC coordinates
     weather_overlay->SetUpdateInterval(300.0f);          // 5 minutes
     weather_overlay->SetTemperatureColor(VisualColor(178, 226, 206));
+
+    // Initialize immediately to start background weather fetching
+    weather_overlay->Initialize();
+
     screen->AddOverlay(weather_overlay);
 
     return screen;
@@ -142,7 +146,7 @@ void RunScreenCycling(DisplayManager &display_manager, const std::vector<std::st
 
     // Run screen switching in a separate thread
 
-    const int screen_duration_seconds = 120;
+    const int screen_duration_seconds = 20;
     std::thread screen_switcher([&]()
                                 {
         size_t current_screen = 0;
